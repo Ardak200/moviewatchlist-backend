@@ -1,10 +1,13 @@
 import jwt from "jsonwebtoken";
+import type { Request, Response, NextFunction } from "express";
 import { prisma } from "../config/db.js";
 
-// Read the token from the request
-// Check if token is valid
-export const authMiddleware = async (req, res, next) => {
-  let token;
+export const authMiddleware = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  let token: string | undefined;
 
   if (
     req.headers.authorization &&
@@ -20,8 +23,7 @@ export const authMiddleware = async (req, res, next) => {
   }
 
   try {
-    // Verify token and extract the user Id
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as jwt.JwtPayload;
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },

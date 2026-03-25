@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    // Компилировать из src/ в dist/
+    "rootDir": "./src",
+    "outDir": "./dist",
+
+    // Node.js + ESM
+    "module": "nodenext",
+    "target": "esnext",
+    "types": ["node"],
+
+    // Строгая проверка типов
+    "strict": true,
+    "skipLibCheck": true,
+
+    // Чтобы можно было импортить shared пакет
+    "paths": {
+      "shared": ["../shared/src/types"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

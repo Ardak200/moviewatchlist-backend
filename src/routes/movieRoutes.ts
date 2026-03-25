@@ -1,7 +1,13 @@
 import express from "express";
 import { prisma } from "../config/db.js";
+import { validateRequest } from "../middleware/validateRequest.js";
+import { createMovieSchema } from "../validators/movieValidators.js";
+import { createMovie } from "../controllers/movieController.js";
+import { authMiddleware } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+
+router.use(authMiddleware);
 
 // Get all movies
 router.get("/", async (req, res) => {
@@ -18,9 +24,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.post("/", (req, res) => {
-  res.json({ httpMethod: "post" });
-});
+router.post("/", validateRequest(createMovieSchema), createMovie);
 
 router.put("/", (req, res) => {
   res.json({ httpMethod: "put" });

@@ -1,9 +1,5 @@
 import { z } from "zod";
 
-/**
- * Validation schema for user registration
- * Validates name, email format, and password strength
- */
 const registerSchema = z.object({
   name: z
     .string()
@@ -21,10 +17,6 @@ const registerSchema = z.object({
     .min(6, "Password must be at least 6 characters"),
 });
 
-/**
- * Validation schema for user login
- * Validates email format and ensures password is provided
- */
 const loginSchema = z.object({
   email: z
     .string()

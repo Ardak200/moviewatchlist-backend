@@ -20,8 +20,9 @@ const connectDB = async () => {
   try {
     await prisma.$connect();
     console.log("DB Connected via Prisma 7 (PG Adapter)");
-  } catch (error) {
-    console.error(`Database connection error: ${error.message}`);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error(`Database connection error: ${message}`);
     process.exit(1);
   }
 };

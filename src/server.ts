@@ -1,5 +1,7 @@
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
+import morgan from "morgan";
 import { config } from "dotenv";
 import { connectDB, disconnectDB } from "./config/db.js";
 
@@ -13,17 +15,25 @@ connectDB();
 
 const app = express();
 
-// Body parsing middlewares
-app.use(cors());
+// Middlewares
+app.use(
+  cors({
+    origin: "http://localhost:5173", // Vite default port
+    credentials: true,
+  })
+);
+app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // API Routes
 app.use("/movies", movieRoutes);
 app.use("/auth", authRoutes);
 app.use("/watchlist", watchlistRoutes);
 
-const server = app.listen(process.env.PORT || 5001, "0.0.0.0", () => {
+const port = Number(process.env.PORT) || 5001;
+const server = app.listen(port, "0.0.0.0", () => {
   console.log(`Server running on PORT ${process.env.PORT}`);
 });
 

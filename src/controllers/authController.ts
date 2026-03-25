@@ -1,11 +1,11 @@
+import type { Request, Response } from "express";
 import { prisma } from "../config/db.js";
 import bcrypt from "bcryptjs";
 import { generateToken } from "../utils/generateToken.js";
 
-const register = async (req, res) => {
+const register = async (req: Request, res: Response) => {
   const { name, email, password } = req.body;
 
-  // Check if user already exists
   const userExists = await prisma.user.findUnique({
     where: { email: email },
   });
@@ -16,11 +16,9 @@ const register = async (req, res) => {
       .json({ error: "User already exists with this email" });
   }
 
-  // Hash Password
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
 
-  // Create User
   const user = await prisma.user.create({
     data: {
       name,
@@ -29,7 +27,6 @@ const register = async (req, res) => {
     },
   });
 
-  // Generate JWT Token
   const token = generateToken(user.id, res);
 
   res.status(201).json({
@@ -45,10 +42,9 @@ const register = async (req, res) => {
   });
 };
 
-const login = async (req, res) => {
+const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
-  // Check if user email exists in the table
   const user = await prisma.user.findUnique({
     where: { email: email },
   });
@@ -57,14 +53,12 @@ const login = async (req, res) => {
     return res.status(401).json({ error: "Invalid email or password" });
   }
 
-  // verify password
   const isPasswordValid = await bcrypt.compare(password, user.password);
 
   if (!isPasswordValid) {
     return res.status(401).json({ error: "Invalid email or password" });
   }
 
-  // Generate JWT Token
   const token = generateToken(user.id, res);
 
   res.status(201).json({
@@ -72,6 +66,7 @@ const login = async (req, res) => {
     data: {
       user: {
         id: user.id,
+        name: user.name,
         email: email,
       },
       token,
@@ -79,7 +74,7 @@ const login = async (req, res) => {
   });
 };
 
-const logout = async (req, res) => {
+const logout = async (_req: Request, res: Response) => {
   res.cookie("jwt", "", {
     httpOnly: true,
     expires: new Date(0),
@@ -90,4 +85,18 @@ const logout = async (req, res) => {
   });
 };
 
-export { register, login, logout };
+const getMe = async (req: Request, res: Response) => {
+  const user = req.user!;
+  res.status(200).json({
+    status: "success",
+    data: {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+      },
+    },
+  });
+};
+
+export { register, login, logout, getMe };

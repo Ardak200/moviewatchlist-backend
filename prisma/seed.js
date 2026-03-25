@@ -1,4 +1,4 @@
-import { prisma } from "../src/config/db.js";
+import { prisma } from "../src/config/db.ts";
 
 const movies = [
   {
@@ -116,7 +116,7 @@ const main = async () => {
     await prisma.movie.create({
       data: {
         ...movieData,
-        createdBy: "98ec6588-9fe5-455e-acda-c8fd3054ad9a",
+        createdBy: "a0eca793-071d-4af6-9655-b649bf690034",
       },
     });
     console.log(`Created movie: ${movieData.title}`);
