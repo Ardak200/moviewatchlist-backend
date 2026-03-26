@@ -1,8 +1,15 @@
 import express from "express";
 import { prisma } from "../config/db.js";
 import { validateRequest } from "../middleware/validateRequest.js";
-import { createMovieSchema } from "../validators/movieValidators.js";
-import { createMovie } from "../controllers/movieController.js";
+import {
+  createMovieSchema,
+  updateMovieSchema,
+} from "../validators/movieValidators.js";
+import {
+  createMovie,
+  deleteMovie,
+  updateMovie,
+} from "../controllers/movieController.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
@@ -26,12 +33,8 @@ router.get("/", async (req, res) => {
 
 router.post("/", validateRequest(createMovieSchema), createMovie);
 
-router.put("/", (req, res) => {
-  res.json({ httpMethod: "put" });
-});
+router.patch("/:id", validateRequest(updateMovieSchema), updateMovie);
 
-router.delete("/", (req, res) => {
-  res.json({ httpMethod: "delete" });
-});
+router.delete("/:id", deleteMovie);
 
 export default router;

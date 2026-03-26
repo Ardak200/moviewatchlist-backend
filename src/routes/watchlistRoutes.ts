@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  getWatchlist,
   addToWatchlist,
   removeFromWatchlist,
   updateWatchlistItem,
@@ -11,6 +12,8 @@ import { addToWatchlistSchema } from "../validators/watchlistValidators.js";
 const router = express.Router();
 
 router.use(authMiddleware);
+
+router.get("/", getWatchlist);
 
 router.post("/", validateRequest(addToWatchlistSchema), addToWatchlist);
 
