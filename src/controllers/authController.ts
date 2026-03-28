@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { prisma } from "../config/db.js";
 import bcrypt from "bcryptjs";
 import { generateToken } from "../utils/generateToken.js";
+import { BadRequestError, UnauthorizedError } from "../utils/appError.js";
 
 const register = async (req: Request, res: Response) => {
   const { name, email, password } = req.body;
@@ -11,9 +12,7 @@ const register = async (req: Request, res: Response) => {
   });
 
   if (userExists) {
-    return res
-      .status(400)
-      .json({ error: "User already exists with this email" });
+    throw new BadRequestError("User already exists with this email");
   }
 
   const salt = await bcrypt.genSalt(10);
@@ -51,13 +50,13 @@ const login = async (req: Request, res: Response) => {
   });
 
   if (!user) {
-    return res.status(401).json({ error: "Invalid email or password" });
+    throw new UnauthorizedError("Invalid email or password");
   }
 
   const isPasswordValid = await bcrypt.compare(password, user.password);
 
   if (!isPasswordValid) {
-    return res.status(401).json({ error: "Invalid email or password" });
+    throw new UnauthorizedError("Invalid email or password");
   }
 
   const token = generateToken(user.id, res);

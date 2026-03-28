@@ -1,5 +1,17 @@
 import { z } from "zod";
 
+const getMoviesQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(10),
+  sortBy: z.enum(["createdAt", "releaseYear", "title"]).default("createdAt"),
+  sortOrder: z.enum(["asc", "desc"]).default("desc"),
+  genre: z.string().optional(),
+  search: z.string().optional(),
+});
+
+export type GetMoviesQueryType = z.infer<typeof getMoviesQuerySchema>;
+export { getMoviesQuerySchema };
+
 const createMovieSchema = z.object({
   title: z.string().trim().min(1, "Movie title is required"),
   releaseYear: z.coerce
@@ -39,6 +51,7 @@ const updateMovieSchema = z.object({
   posterUrl: z.string().url("Poster URL must be a valid URL").optional(),
 });
 
-export type CreateMovie = z.infer<typeof createMovieSchema>;
+export type createMovieType = z.infer<typeof createMovieSchema>;
+export type updateMovieType = z.infer<typeof updateMovieSchema>;
 
 export { createMovieSchema, updateMovieSchema };

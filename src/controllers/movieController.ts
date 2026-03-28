@@ -1,9 +1,63 @@
 import type { Request, Response } from "express";
 
 import { prisma } from "../config/db.js";
+import {
+  createMovieType,
+  getMoviesQuerySchema,
+  updateMovieType,
+} from "../validators/movieValidators.js";
+import {
+  BadRequestError,
+  ForbiddenError,
+  NotFoundError,
+} from "../utils/appError.js";
 
-export const createMovie = async (req: Request, res: Response) => {
-  const { title, ...rest } = req.body;
+export const getMovies = async (req: Request, res: Response) => {
+  const query = getMoviesQuerySchema.parse(req.query);
+
+  const { page, limit, sortBy, sortOrder, genre, search } = query;
+  const skip = (page - 1) * limit;
+
+  const where = {
+    ...(genre && { genres: { has: genre } }),
+    ...(search && {
+      title: { contains: search, mode: "insensitive" as const },
+    }),
+  };
+
+  const [movies, total] = await Promise.all([
+    prisma.movie.findMany({
+      where,
+      orderBy: { [sortBy]: sortOrder },
+      skip,
+      take: limit,
+    }),
+    prisma.movie.count({ where }),
+  ]);
+
+  res.json({
+    data: movies,
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  });
+};
+
+export const createMovie = async (
+  req: Request<{}, {}, createMovieType>,
+  res: Response,
+) => {
+  const { title, overview, genres, posterUrl: _bodyPoster } = req.body;
+  const releaseYear = Number(req.body.releaseYear);
+  const runtime = req.body.runtime ? Number(req.body.runtime) : undefined;
+
+  const posterUrl = req.file
+    ? `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`
+    : req.body.posterUrl;
+
   const isExisting = await prisma.movie.findFirst({
     where: {
       title,
@@ -11,20 +65,37 @@ export const createMovie = async (req: Request, res: Response) => {
   });
 
   if (isExisting) {
-    return res
-      .status(400)
-      .json({ error: "Movie with this name already exists" });
+    throw new BadRequestError("Movie with this name already exists");
   }
 
   await prisma.movie.create({
-    data: { createdBy: req.user?.id, title, ...rest },
+    data: {
+      overview,
+      genres,
+      releaseYear,
+      runtime,
+      createdBy: req.user!.id,
+      title,
+      posterUrl,
+    },
   });
 
   return res.status(200).json({ message: "shit" });
 };
 
-export const updateMovie = async (req: Request, res: Response) => {
+export const updateMovie = async (
+  req: Request<{ id: string }, {}, updateMovieType>,
+  res: Response,
+) => {
   const id = req.params.id;
+
+  const { title, overview, genres, posterUrl: _bodyPoster } = req.body;
+  const releaseYear = Number(req.body.releaseYear);
+  const runtime = req.body.runtime ? Number(req.body.runtime) : undefined;
+
+  const posterUrl = req.file
+    ? `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`
+    : req.body.posterUrl;
 
   const movie = await prisma.movie.findUnique({
     where: {
@@ -32,19 +103,24 @@ export const updateMovie = async (req: Request, res: Response) => {
     },
   });
 
-  if (!movie) return res.status(404).json({ error: "Movie not found" });
+  if (!movie) throw new NotFoundError("Movie not found");
 
   if (req.user?.role === "Admin" || movie.createdBy === req.user?.id) {
     await prisma.movie.update({
       where: { id: id as string },
       data: {
-        ...req.body,
+        title,
+        overview,
+        genres,
+        releaseYear,
+        runtime,
+        posterUrl,
       },
     });
 
     res.status(200).json({ message: "Successfully update the movie" });
   } else {
-    res.status(403).json({ error: "No permission to update this movie" });
+    throw new ForbiddenError("No permission to update this movie");
   }
 };
 
@@ -57,7 +133,7 @@ export const deleteMovie = async (req: Request, res: Response) => {
     },
   });
 
-  if (!movie) return res.status(404).json({ error: "Movie not found" });
+  if (!movie) throw new NotFoundError("Movie not found");
 
   if (req.user?.role === "Admin" || movie.createdBy === req.user?.id) {
     await prisma.movie.delete({
@@ -66,6 +142,6 @@ export const deleteMovie = async (req: Request, res: Response) => {
 
     res.status(200).json({ message: "Successfully deleted the movie" });
   } else {
-    res.status(403).json({ error: "No permission to delete this movie" });
+    throw new ForbiddenError("No permission to delete this movie");
   }
 };

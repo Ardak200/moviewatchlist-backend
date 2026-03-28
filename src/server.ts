@@ -5,39 +5,41 @@ import morgan from "morgan";
 import { config } from "dotenv";
 import { connectDB, disconnectDB } from "./config/db.js";
 
-// Import Routes
 import movieRoutes from "./routes/movieRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import watchlistRoutes from "./routes/watchlistRoutes.js";
+import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
 
 config();
 connectDB();
 
 const app = express();
 
-// Middlewares
 app.use(
   cors({
     origin: "http://localhost:5173", // Vite default port
     credentials: true,
-  })
+  }),
 );
+
+app.use("/uploads", express.static("uploads"));
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// API Routes
 app.use("/movies", movieRoutes);
 app.use("/auth", authRoutes);
 app.use("/watchlist", watchlistRoutes);
+
+app.use(notFound);
+app.use(errorHandler);
 
 const port = Number(process.env.PORT) || 5001;
 const server = app.listen(port, "0.0.0.0", () => {
   console.log(`Server running on PORT ${process.env.PORT}`);
 });
 
-// Handle unhandled promise rejections (e.g., database connection errors)
 process.on("unhandledRejection", (err) => {
   console.error("Unhandled Rejection:", err);
   server.close(async () => {
@@ -46,14 +48,12 @@ process.on("unhandledRejection", (err) => {
   });
 });
 
-// Handle uncaught exceptions
 process.on("uncaughtException", async (err) => {
   console.error("Uncaught Exception:", err);
   await disconnectDB();
   process.exit(1);
 });
 
-// Graceful shutdown
 process.on("SIGTERM", async () => {
   console.log("SIGTERM received, shutting down gracefully");
   server.close(async () => {

@@ -1,6 +1,11 @@
 import type { Request, Response } from "express";
 import type { WatchlistStatus } from "@prisma/client";
 import { prisma } from "../config/db.js";
+import {
+  BadRequestError,
+  ForbiddenError,
+  NotFoundError,
+} from "../utils/appError.js";
 
 const getWatchlist = async (req: Request, res: Response) => {
   const watchlist = await prisma.watchlistItem.findMany({
@@ -23,7 +28,7 @@ const addToWatchlist = async (req: Request, res: Response) => {
   });
 
   if (!movie) {
-    return res.status(404).json({ error: "Movie not found" });
+    throw new NotFoundError("Movie not found");
   }
 
   const existingInWatchlist = await prisma.watchlistItem.findUnique({
@@ -36,7 +41,7 @@ const addToWatchlist = async (req: Request, res: Response) => {
   });
 
   if (existingInWatchlist) {
-    return res.status(400).json({ error: "Movie already in the watchlist" });
+    throw new BadRequestError("Movie already in the watchlist");
   }
 
   const watchlistItem = await prisma.watchlistItem.create({
@@ -66,13 +71,11 @@ const updateWatchlistItem = async (req: Request, res: Response) => {
   });
 
   if (!watchlistItem) {
-    return res.status(404).json({ error: "Watchlist item not found" });
+    throw new NotFoundError("Watchlist item not found");
   }
 
   if (watchlistItem.userId !== req.user!.id) {
-    return res
-      .status(403)
-      .json({ error: "Not allowed to update this watchlist item" });
+    throw new ForbiddenError("Not allowed to update this watchlist item");
   }
 
   const updateData: {
@@ -80,7 +83,8 @@ const updateWatchlistItem = async (req: Request, res: Response) => {
     rating?: number;
     notes?: string;
   } = {};
-  if (status !== undefined) updateData.status = status.toUpperCase() as WatchlistStatus;
+  if (status !== undefined)
+    updateData.status = status.toUpperCase() as WatchlistStatus;
   if (rating !== undefined) updateData.rating = rating;
   if (notes !== undefined) updateData.notes = notes;
 
@@ -105,13 +109,11 @@ const removeFromWatchlist = async (req: Request, res: Response) => {
   });
 
   if (!watchlistItem) {
-    return res.status(404).json({ error: "Watchlist item not found" });
+    throw new NotFoundError("Watchlist item not found");
   }
 
   if (watchlistItem.userId !== req.user!.id) {
-    return res
-      .status(403)
-      .json({ error: "Not allowed to update this watchlist item" });
+    throw new ForbiddenError("Not allowed to update this watchlist item");
   }
 
   await prisma.watchlistItem.delete({
@@ -124,4 +126,9 @@ const removeFromWatchlist = async (req: Request, res: Response) => {
   });
 };
 
-export { getWatchlist, addToWatchlist, updateWatchlistItem, removeFromWatchlist };
+export {
+  getWatchlist,
+  addToWatchlist,
+  updateWatchlistItem,
+  removeFromWatchlist,
+};

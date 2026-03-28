@@ -8,32 +8,32 @@ import {
 import {
   createMovie,
   deleteMovie,
+  getMovies,
   updateMovie,
 } from "../controllers/movieController.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
+import { upload } from "../middleware/upload.js";
 
 const router = express.Router();
 
 router.use(authMiddleware);
 
 // Get all movies
-router.get("/", async (req, res) => {
-  try {
-    const movies = await prisma.movie.findMany({
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-    res.json(movies);
-  } catch (error) {
-    console.error("Error fetching movies:", error);
-    res.status(500).json({ error: "Failed to fetch movies" });
-  }
-});
+router.get("/", getMovies);
 
-router.post("/", validateRequest(createMovieSchema), createMovie);
+router.post(
+  "/",
+  upload.single("poster"),
+  validateRequest(createMovieSchema),
+  createMovie,
+);
 
-router.patch("/:id", validateRequest(updateMovieSchema), updateMovie);
+router.patch(
+  "/:id",
+  upload.single("poster"),
+  validateRequest(updateMovieSchema),
+  updateMovie,
+);
 
 router.delete("/:id", deleteMovie);
 
