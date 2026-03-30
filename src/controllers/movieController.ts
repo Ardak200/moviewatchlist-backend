@@ -11,11 +11,21 @@ import {
   ForbiddenError,
   NotFoundError,
 } from "../utils/appError.js";
+import { redis } from "../config/redis.js";
 
 export const getMovies = async (req: Request, res: Response) => {
   const query = getMoviesQuerySchema.parse(req.query);
 
   const { page, limit, sortBy, sortOrder, genre, search } = query;
+
+  const cacheKey = `movies:${JSON.stringify(query)}`;
+
+  const cached = await redis.get(cacheKey);
+
+  if (cached) {
+    return res.json(JSON.parse(cached));
+  }
+
   const skip = (page - 1) * limit;
 
   const where = {
@@ -35,7 +45,7 @@ export const getMovies = async (req: Request, res: Response) => {
     prisma.movie.count({ where }),
   ]);
 
-  res.json({
+  const response = {
     data: movies,
     meta: {
       total,
@@ -43,7 +53,18 @@ export const getMovies = async (req: Request, res: Response) => {
       limit,
       totalPages: Math.ceil(total / limit),
     },
-  });
+  };
+
+  await redis.set(cacheKey, JSON.stringify(response), "EX", 60);
+
+  res.json(response);
+};
+
+const clearMovieCache = async () => {
+  const keys = await redis.keys("movies:*");
+  if (keys.length > 0) {
+    await redis.del(...keys);
+  }
 };
 
 export const createMovie = async (
@@ -79,6 +100,7 @@ export const createMovie = async (
       posterUrl,
     },
   });
+  await clearMovieCache();
 
   return res.status(200).json({ message: "shit" });
 };
@@ -117,6 +139,7 @@ export const updateMovie = async (
         posterUrl,
       },
     });
+    await clearMovieCache();
 
     res.status(200).json({ message: "Successfully update the movie" });
   } else {
@@ -139,6 +162,7 @@ export const deleteMovie = async (req: Request, res: Response) => {
     await prisma.movie.delete({
       where: { id: id as string },
     });
+    await clearMovieCache();
 
     res.status(200).json({ message: "Successfully deleted the movie" });
   } else {
