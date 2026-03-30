@@ -1,7 +1,10 @@
 import type { Request, Response } from "express";
 import { prisma } from "../config/db.js";
 import bcrypt from "bcryptjs";
-import { generateToken } from "../utils/generateToken.js";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+} from "../utils/generateToken.js";
 import { BadRequestError, UnauthorizedError } from "../utils/appError.js";
 
 const register = async (req: Request, res: Response) => {
@@ -26,7 +29,8 @@ const register = async (req: Request, res: Response) => {
     },
   });
 
-  const token = generateToken(user.id, res);
+  const accessToken = generateAccessToken(user.id, res);
+  await generateRefreshToken(user.id, res);
 
   res.status(201).json({
     status: "success",
@@ -37,7 +41,7 @@ const register = async (req: Request, res: Response) => {
         email: email,
         role: user.role,
       },
-      token,
+      token: accessToken,
     },
   });
 };
@@ -59,7 +63,8 @@ const login = async (req: Request, res: Response) => {
     throw new UnauthorizedError("Invalid email or password");
   }
 
-  const token = generateToken(user.id, res);
+  const accessToken = generateAccessToken(user.id, res);
+  await generateRefreshToken(user.id, res);
 
   res.status(201).json({
     status: "success",
@@ -70,16 +75,58 @@ const login = async (req: Request, res: Response) => {
         email: email,
         role: user.role,
       },
-      token,
+      token: accessToken,
     },
   });
 };
 
-const logout = async (_req: Request, res: Response) => {
-  res.cookie("jwt", "", {
+const refresh = async (req: Request, res: Response) => {
+  const token = req.cookies?.refreshToken;
+
+  if (!token) {
+    throw new UnauthorizedError("No refresh token provided");
+  }
+
+  const storedToken = await prisma.refreshToken.findUnique({
+    where: { token },
+  });
+
+  if (!storedToken || storedToken.expiresAt < new Date()) {
+    if (storedToken) {
+      await prisma.refreshToken.delete({ where: { id: storedToken.id } });
+    }
+
+    throw new UnauthorizedError("Invalid or expired refresh token");
+  }
+
+  await prisma.refreshToken.delete({ where: { id: storedToken.id } });
+
+  const accessToken = generateAccessToken(storedToken.userId, res);
+  await generateRefreshToken(storedToken.userId, res);
+
+  res.status(200).json({
+    status: "success",
+    data: { token: accessToken },
+  });
+};
+
+const logout = async (req: Request, res: Response) => {
+  const token = req.cookies?.refreshToken;
+
+  if (token) {
+    await prisma.refreshToken.deleteMany({ where: { token } });
+  }
+
+  res.cookie("accessToken", "", {
     httpOnly: true,
     expires: new Date(0),
   });
+
+  res.cookie("refreshToken", "", {
+    httpOnly: true,
+    expires: new Date(0),
+  });
+
   res.status(200).json({
     status: "success",
     message: "Logged out successfully",
@@ -101,4 +148,4 @@ const getMe = async (req: Request, res: Response) => {
   });
 };
 
-export { register, login, logout, getMe };
+export { register, login, logout, getMe, refresh };

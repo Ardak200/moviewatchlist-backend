@@ -24,7 +24,19 @@ model User {
   // Relations
   movies         Movie[]         @relation("MovieCreator")
   watchlistItems WatchlistItem[]
+
+  refreshTokens  RefreshToken[] 
 }
+
+model RefreshToken {                                                                                                                            
+    id        String   @id @default(uuid())                                                                                                     
+    token     String   @unique                                                                                                                    
+    userId    String
+    expiresAt DateTime                                                                                                                            
+    createdAt DateTime @default(now())
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)                                                                    
+  }
 
 model Movie {
   id          String   @id @default(uuid())
