@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import type { Request, Response, NextFunction } from "express";
+import { ZodError } from "zod";
 
 interface AppError extends Error {
   statusCode?: number;
@@ -18,7 +19,7 @@ const errorHandler = (
   err: AppError,
   req: Request,
   res: Response,
-  _next: NextFunction
+  _next: NextFunction,
 ) => {
   let statusCode = err.statusCode || 500;
   let message = err.message;
@@ -32,8 +33,7 @@ const errorHandler = (
   // Handle Prisma known request errors
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     if (err.code === "P2002") {
-      const field =
-        (err.meta?.target as string[] | undefined)?.[0] || "field";
+      const field = (err.meta?.target as string[] | undefined)?.[0] || "field";
       statusCode = 400;
       message = `${field} already exists`;
     }
@@ -45,6 +45,12 @@ const errorHandler = (
       statusCode = 400;
       message = "Invalid reference: related record does not exist";
     }
+  }
+
+  if (err instanceof ZodError || err.name === "ZodError") {
+    const zodErr = err as unknown as ZodError;
+    statusCode = 400;
+    message = zodErr.issues.map((e) => e.message).join(", ");
   }
 
   res.status(statusCode).json({
